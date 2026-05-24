@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClipView - 图片裁剪与黑边合成工具</title>
+    <title>ClipView - 电影变形宽银幕风格裁切与字幕添加</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css">
     <style>
         :root {
@@ -165,10 +165,11 @@
         </div>
         <div class="ratio-bar" id="ratioBar">
             <button class="ratio-btn active" data-ratio="2.35">2.35:1</button>
+            <button class="ratio-btn" data-ratio="2.39">2.39:1</button>
             <button class="ratio-btn" data-ratio="1.778">16:9</button>
             <button class="ratio-btn" data-ratio="1.333">4:3</button>
             <button class="ratio-btn" data-ratio="1">1:1</button>
-            <button class="ratio-btn" data-ratio="2.333">21:9</button>
+            
             <span class="custom-ratio">
                 <input type="number" id="ratioW" placeholder="宽" min="1" value="">
                 <span>:</span>
@@ -286,7 +287,7 @@
         // Subtitle compatibility
         function isSubtitleCompatible() {
             if (!blackBarEnabled) return false;
-            if (approx(blackBarRatio, 16 / 9)) return approx(currentRatio, 2.35) || approx(currentRatio, 2.333);
+            if (approx(blackBarRatio, 16 / 9)) return approx(currentRatio, 2.35) || approx(currentRatio, 2.39);
             if (approx(blackBarRatio, 4 / 3)) return approx(currentRatio, 1.778);
             return false;
         }
