@@ -279,8 +279,8 @@
         // Subtitle compatibility
         function isSubtitleCompatible() {
             if (!blackBarEnabled) return false;
-            if (blackBarRatio === 16 / 9) return currentRatio === 2.35 || currentRatio === 2.333;
-            if (blackBarRatio === 4 / 3) return currentRatio === 1.778;
+            if (approx(blackBarRatio, 16 / 9)) return approx(currentRatio, 2.35) || approx(currentRatio, 2.333);
+            if (approx(blackBarRatio, 4 / 3)) return approx(currentRatio, 1.778);
             return false;
         }
 
@@ -293,11 +293,14 @@
         }
 
         // Update preview header text
-        function updatePreviewHeader() {
+        
+        function approx(a, b) { return Math.abs(a - b) < 0.01; }
+
+function updatePreviewHeader() {
             if (!blackBarEnabled) {
                 previewHeader.textContent = '裁剪预览';
             } else {
-                const label = blackBarRatio === 16 / 9 ? '16:9' : '4:3';
+                const label = approx(blackBarRatio, 16 / 9) ? '16:9' : '4:3';
                 previewHeader.textContent = label + ' 黑边预览';
             }
         }
@@ -368,7 +371,7 @@
             const text = subtitleInput.value.trim();
             if (!text) return;
             const barH = (ch - imgH) / 2;
-            const fontSize = Math.max(16, Math.min(72, Math.floor(barH * 0.4)));
+            const fontSize = Math.max(16, Math.min(72, Math.floor(barH * 0.6)));
             ctx.fillStyle = 'rgba(255,255,255,0.9)';
             ctx.font = fontSize + 'px system-ui, "Microsoft YaHei", sans-serif';
             ctx.textAlign = 'center';
