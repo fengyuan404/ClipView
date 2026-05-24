@@ -70,6 +70,11 @@
             background: var(--surface); color: var(--text); text-align: center; font-size: 0.83rem;
         }
         .custom-ratio span { color: var(--muted); font-size: 0.83rem; }
+        .blackbar-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+        .blackbar-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem; color: var(--text); user-select: none; }
+        .blackbar-toggle input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+        .blackbar-ratios { display: flex; gap: 6px; }
+        .blackbar-ratios.hidden { display: none; }
         .toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
         .tool-btn {
             padding: 5px 12px; border: 1px solid var(--border); border-radius: 5px;
@@ -157,6 +162,16 @@
                 <input type="number" id="ratioH" placeholder="高" min="1" value="">
             </span>
         </div>
+        <div class="blackbar-bar">
+            <label class="blackbar-toggle">
+                <input type="checkbox" id="blackbarToggle" checked>
+                <span>添加黑边</span>
+            </label>
+            <div class="blackbar-ratios" id="blackbarRatios">
+                <button class="ratio-btn active" data-bb="1.778">16:9</button>
+                <button class="ratio-btn" data-bb="1.333">4:3</button>
+            </div>
+        </div>
         <div class="toolbar">
             <button class="tool-btn" id="rotateLeft">↺ 左旋90°</button>
             <button class="tool-btn" id="rotateRight">↻ 右旋90°</button>
@@ -173,7 +188,7 @@
                 </div>
             </div>
             <div class="panel preview-panel">
-                <div class="panel-header">16:9 黑边预览</div>
+                <div class="panel-header" id="previewHeader">16:9 黑边预览</div>
                 <div class="panel-body">
                     <canvas id="previewCanvas"></canvas>
                     <span class="panel-placeholder" id="previewPlaceholder" style="color:#888">裁剪后自动预览</span>
@@ -202,6 +217,8 @@
         let flipHActive = false;
         let flipVActive = false;
         let cropDebounce = null;
+        let blackBarEnabled = true;
+        let blackBarRatio = 16 / 9;
 
         const $ = id => document.getElementById(id);
         const fileInput = $('fileInput');
@@ -217,6 +234,9 @@
         const toastEl = $('toast');
         const cropPlaceholder = $('cropPlaceholder');
         const previewPlaceholder = $('previewPlaceholder');
+        const previewHeader = $('previewHeader');
+        const blackbarToggle = $('blackbarToggle');
+        const blackbarRatios = $('blackbarRatios');
 
         // Theme
         function initTheme() {
@@ -239,6 +259,16 @@
             toastEl.textContent = msg;
             toastEl.className = 'toast' + (isError ? ' error' : '') + ' show';
             toastTimer = setTimeout(() => { toastEl.className = 'toast'; }, 2200);
+        }
+
+        // Update preview header text
+        function updatePreviewHeader() {
+            if (!blackBarEnabled) {
+                previewHeader.textContent = '裁剪预览';
+            } else {
+                const label = blackBarRatio === 16 / 9 ? '16:9' : '4:3';
+                previewHeader.textContent = label + ' 黑边预览';
+            }
         }
 
         // Upload
@@ -302,16 +332,25 @@
             };
         }
 
-        // Live preview - draw cropped image on 16:9 black canvas
+        // Live preview
         function updatePreview() {
             if (!cropper) return;
             const cvs = cropper.getCroppedCanvas();
             if (!cvs || cvs.width < 2) return;
 
+            if (!blackBarEnabled) {
+                const maxW = 900;
+                const scale = Math.min(1, maxW / cvs.width);
+                previewCanvas.width = Math.round(cvs.width * scale);
+                previewCanvas.height = Math.round(cvs.height * scale);
+                previewCtx.drawImage(cvs, 0, 0, previewCanvas.width, previewCanvas.height);
+                return;
+            }
+
             const maxW = 900;
             const scale = Math.min(1, maxW / cvs.width);
             const tw = Math.round(cvs.width * scale);
-            const th = Math.round(tw / (16 / 9));
+            const th = Math.round(tw / blackBarRatio);
 
             previewCanvas.width = tw;
             previewCanvas.height = th;
@@ -327,7 +366,7 @@
         $('ratioBar').addEventListener('click', e => {
             const btn = e.target.closest('.ratio-btn');
             if (!btn) return;
-            document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('#ratioBar .ratio-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentRatio = parseFloat(btn.dataset.ratio);
             $('ratioW').value = '';
@@ -342,12 +381,35 @@
             const h = parseFloat($('ratioH').value);
             if (w > 0 && h > 0 && cropper) {
                 currentRatio = w / h;
-                document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('#ratioBar .ratio-btn').forEach(b => b.classList.remove('active'));
                 cropper.setAspectRatio(currentRatio);
             }
         }
         $('ratioW').addEventListener('input', () => { clearTimeout(customTimer); customTimer = setTimeout(applyCustomRatio, 400); });
         $('ratioH').addEventListener('input', () => { clearTimeout(customTimer); customTimer = setTimeout(applyCustomRatio, 400); });
+
+        // Black bar toggle
+        blackbarToggle.addEventListener('change', () => {
+            blackBarEnabled = blackbarToggle.checked;
+            if (blackBarEnabled) {
+                blackbarRatios.classList.remove('hidden');
+            } else {
+                blackbarRatios.classList.add('hidden');
+            }
+            updatePreviewHeader();
+            updatePreview();
+        });
+
+        // Black bar ratio buttons
+        blackbarRatios.addEventListener('click', e => {
+            const btn = e.target.closest('.ratio-btn');
+            if (!btn) return;
+            blackbarRatios.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            blackBarRatio = parseFloat(btn.dataset.bb);
+            updatePreviewHeader();
+            updatePreview();
+        });
 
         // Toolbar
         $('rotateLeft').addEventListener('click', () => {
@@ -389,8 +451,23 @@
             const cropCvs = cropper.getCroppedCanvas();
             if (!cropCvs || cropCvs.width < 2) { toast('裁剪区域无效', true); return; }
 
+            const fmt = exportFormat.value;
+            const qual = parseFloat(exportQuality.value);
+
+            if (!blackBarEnabled) {
+                cropCvs.toBlob(blob => {
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = 'clipview_' + Date.now() + '.' + (fmt === 'jpeg' ? 'jpg' : fmt);
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                    toast('导出成功');
+                }, 'image/' + fmt, qual);
+                return;
+            }
+
             const tw = cropCvs.width;
-            const th = Math.round(tw / (16 / 9));
+            const th = Math.round(tw / blackBarRatio);
             const ecvs = document.createElement('canvas');
             ecvs.width = tw;
             ecvs.height = th;
@@ -400,8 +477,6 @@
             const imgH = Math.round(tw / currentRatio);
             ctx.drawImage(cropCvs, 0, (th - imgH) / 2, tw, imgH);
 
-            const fmt = exportFormat.value;
-            const qual = parseFloat(exportQuality.value);
             ecvs.toBlob(blob => {
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
@@ -413,6 +488,7 @@
         });
 
         initTheme();
+        updatePreviewHeader();
     </script>
 </body>
 </html>
