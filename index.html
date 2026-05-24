@@ -75,6 +75,13 @@
         .blackbar-toggle input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
         .blackbar-ratios { display: flex; gap: 6px; }
         .blackbar-ratios.hidden { display: none; }
+        .subtitle-row { display: flex; align-items: center; gap: 6px; margin-left: 4px; }
+        .subtitle-row.hidden { display: none; }
+        .subtitle-row label { font-size: 0.83rem; color: var(--muted); white-space: nowrap; }
+        .subtitle-row input {
+            width: 200px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px;
+            background: var(--surface); color: var(--text); font-size: 0.83rem;
+        }
         .toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
         .tool-btn {
             padding: 5px 12px; border: 1px solid var(--border); border-radius: 5px;
@@ -136,6 +143,7 @@
             .export-bar { flex-direction: column; align-items: stretch; }
             .export-btn { margin-left: 0; text-align: center; }
             .custom-ratio { margin-left: 0; margin-top: 4px; }
+            .subtitle-row input { width: 140px; }
         }
     </style>
 </head>
@@ -170,6 +178,10 @@
             <div class="blackbar-ratios" id="blackbarRatios">
                 <button class="ratio-btn active" data-bb="1.778">16:9</button>
                 <button class="ratio-btn" data-bb="1.333">4:3</button>
+            </div>
+            <div class="subtitle-row" id="subtitleRow">
+                <label>字幕</label>
+                <input type="text" id="subtitleInput" placeholder="输入字幕…" maxlength="100">
             </div>
         </div>
         <div class="toolbar">
@@ -219,6 +231,7 @@
         let cropDebounce = null;
         let blackBarEnabled = true;
         let blackBarRatio = 16 / 9;
+        let subtitleText = '';
 
         const $ = id => document.getElementById(id);
         const fileInput = $('fileInput');
@@ -237,6 +250,8 @@
         const previewHeader = $('previewHeader');
         const blackbarToggle = $('blackbarToggle');
         const blackbarRatios = $('blackbarRatios');
+        const subtitleRow = $('subtitleRow');
+        const subtitleInput = $('subtitleInput');
 
         // Theme
         function initTheme() {
@@ -259,6 +274,22 @@
             toastEl.textContent = msg;
             toastEl.className = 'toast' + (isError ? ' error' : '') + ' show';
             toastTimer = setTimeout(() => { toastEl.className = 'toast'; }, 2200);
+        }
+
+        // Subtitle compatibility
+        function isSubtitleCompatible() {
+            if (!blackBarEnabled) return false;
+            if (blackBarRatio === 16 / 9) return currentRatio === 2.35 || currentRatio === 2.333;
+            if (blackBarRatio === 4 / 3) return currentRatio === 1.778;
+            return false;
+        }
+
+        function updateSubtitleVisibility() {
+            if (isSubtitleCompatible()) {
+                subtitleRow.classList.remove('hidden');
+            } else {
+                subtitleRow.classList.add('hidden');
+            }
         }
 
         // Update preview header text
@@ -332,6 +363,19 @@
             };
         }
 
+        // Draw subtitle on canvas if applicable
+        function drawSubtitle(ctx, cw, ch, imgH) {
+            const text = subtitleInput.value.trim();
+            if (!text) return;
+            const barH = (ch - imgH) / 2;
+            const fontSize = Math.max(16, Math.min(72, Math.floor(barH * 0.4)));
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.font = fontSize + 'px system-ui, "Microsoft YaHei", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, cw / 2, ch - barH / 2 + fontSize * 0.15);
+        }
+
         // Live preview
         function updatePreview() {
             if (!cropper) return;
@@ -360,18 +404,27 @@
             const imgH = Math.round(tw / currentRatio);
             const sy = (th - imgH) / 2;
             previewCtx.drawImage(cvs, 0, sy, tw, imgH);
+
+            if (blackBarEnabled && isSubtitleCompatible()) {
+                drawSubtitle(previewCtx, tw, th, imgH);
+            }
         }
 
         // Ratio presets
-        $('ratioBar').addEventListener('click', e => {
-            const btn = e.target.closest('.ratio-btn');
-            if (!btn) return;
+        function onRatioChange(newRatio) {
+            currentRatio = newRatio;
             document.querySelectorAll('#ratioBar .ratio-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentRatio = parseFloat(btn.dataset.ratio);
             $('ratioW').value = '';
             $('ratioH').value = '';
             if (cropper) cropper.setAspectRatio(currentRatio);
+            updateSubtitleVisibility();
+        }
+
+        $('ratioBar').addEventListener('click', e => {
+            const btn = e.target.closest('.ratio-btn');
+            if (!btn) return;
+            btn.classList.add('active');
+            onRatioChange(parseFloat(btn.dataset.ratio));
         });
 
         // Custom ratio
@@ -383,6 +436,7 @@
                 currentRatio = w / h;
                 document.querySelectorAll('#ratioBar .ratio-btn').forEach(b => b.classList.remove('active'));
                 cropper.setAspectRatio(currentRatio);
+                updateSubtitleVisibility();
             }
         }
         $('ratioW').addEventListener('input', () => { clearTimeout(customTimer); customTimer = setTimeout(applyCustomRatio, 400); });
@@ -395,7 +449,9 @@
                 blackbarRatios.classList.remove('hidden');
             } else {
                 blackbarRatios.classList.add('hidden');
+                subtitleRow.classList.add('hidden');
             }
+            updateSubtitleVisibility();
             updatePreviewHeader();
             updatePreview();
         });
@@ -407,7 +463,14 @@
             blackbarRatios.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             blackBarRatio = parseFloat(btn.dataset.bb);
+            updateSubtitleVisibility();
             updatePreviewHeader();
+            updatePreview();
+        });
+
+        // Subtitle input
+        subtitleInput.addEventListener('input', () => {
+            subtitleText = subtitleInput.value;
             updatePreview();
         });
 
@@ -477,6 +540,10 @@
             const imgH = Math.round(tw / currentRatio);
             ctx.drawImage(cropCvs, 0, (th - imgH) / 2, tw, imgH);
 
+            if (blackBarEnabled && isSubtitleCompatible()) {
+                drawSubtitle(ctx, tw, th, imgH);
+            }
+
             ecvs.toBlob(blob => {
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
@@ -489,6 +556,7 @@
 
         initTheme();
         updatePreviewHeader();
+        updateSubtitleVisibility();
     </script>
 </body>
 </html>
