@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>极简裁剪测试</title>
+    <!-- 只加载必要的 Cropper 资源 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.14/dist/cropper.min.css">
+    <style>
+        body {
+            padding: 20px;
+        }
+
+        #img-container {
+            width: 800px;
+            height: 500px;
+            border: 1px solid #ccc;
+            margin: 20px 0;
+        }
+
+        #target-img {
+            width: 100%;
+        }
+
+        button {
+            padding: 8px 16px;
+            margin: 0 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <h3>操作步骤：1.选图 → 2.拖图片/滚轮缩放 → 3.导出</h3>
+
+    <input type="file" id="file-input" accept="image/*">
+    <button onclick="setRatio(2.35)">2.35:1（电影）</button>
+    <button onclick="setRatio(16/9)">16:9</button>
+    <button onclick="exportImg()">导出</button>
+
+    <div id="img-container">
+        <img id="target-img" src="" alt="请上传图片">
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.14/dist/cropper.min.js"></script>
+    <script>
+        let cropper;
+        const img = document.getElementById('target-img');
+
+        // 1. 上传图片初始化裁剪
+        document.getElementById('file-input').onchange = function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            img.src = url;
+
+            img.onload = function () {
+                if (cropper) cropper.destroy();
+                // 初始化裁剪（强制显示裁剪框）
+                cropper = new Cropper(img, {
+                    aspectRatio: 2.35, // 默认2.35:1
+                    viewMode: 1,
+                    autoCrop: true,
+                    autoCropArea: 1, // 裁剪框占满图片
+                    guides: true, // 显示辅助线（能看到裁剪框）
+                    cropBoxMovable: true, // 允许拖动裁剪框
+                    cropBoxResizable: true // 允许调整裁剪框
+                });
+            };
+        };
+
+        // 2. 切换比例
+        function setRatio(ratio) {
+            if (!cropper) { alert('先上传图片！'); return; }
+            cropper.setAspectRatio(ratio);
+        }
+
+        // 3. 导出图片
+        function exportImg() {
+            if (!cropper) { alert('先上传图片！'); return; }
+            const canvas = cropper.getCroppedCanvas();
+            const a = document.createElement('a');
+            a.download = '裁剪图.png';
+            a.href = canvas.toDataURL();
+            a.click();
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>电影比例图片裁剪工具（16:9 黑边版）</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css">
+    <style>
+        /* ... 你的原有 CSS 样式保持不变 ... */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, sans-serif;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .upload {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #file {
+            display: none;
+        }
+
+        .upload-btn {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .ratio-btns {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .ratio-btn {
+            padding: 5px 10px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            background: #f0f0f0;
+        }
+
+        .ratio-btn.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        .canvas-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        #image {
+            max-width: 100%;
+            max-height: 500px;
+            border: 1px dashed #ccc;
+        }
+
+        .export-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 30px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="title">
+            <h1>图片裁剪与黑边合成工具</h1>
+        </div>
+        <div class="upload">
+            <label for="file" class="upload-btn">选择图片</label>
+            <input type="file" id="file" accept="image/*" />
+        </div>
+        <div class="ratio-btns">
+            <div class="ratio-btn active" data-ratio="2.35">2.35:1 (电影)</div>
+        </div>
+        <div class="canvas-container">
+            <img src="" id="image" alt="Preview" style="display: none;" />
+        </div>
+        <button class="export-btn" id="exportBtn">导出 16:9 黑边图</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
+    <script>
+        let cropperInstance = null;
+        let currentRatio = 2.35;
+        let originalImage = null; // 用于保存原始图片对象
+
+        const fileInput = document.getElementById('file');
+        const imageElement = document.getElementById('image');
+        const ratioBtns = document.querySelectorAll('.ratio-btn');
+        const exportBtn = document.getElementById('exportBtn');
+
+        // --- 1. 文件选择 ---
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imageElement.src = e.target.result;
+                    imageElement.style.display = 'block';
+
+                    // 初始化 Cropper
+                    if (cropperInstance) {
+                        cropperInstance.destroy();
+                    }
+                    cropperInstance = new Cropper(imageElement, {
+                        aspectRatio: currentRatio,
+                        viewMode: 1,
+                        responsive: true,
+                        autoCropArea: 0.8,
+                        ready: function () {
+                            // 图片加载完成后，获取原始尺寸
+                            originalImage = new Image();
+                            originalImage.src = e.target.result;
+                        }
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // --- 2. 比例切换 ---
+        ratioBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                ratioBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentRatio = parseFloat(btn.dataset.ratio);
+
+                if (cropperInstance) {
+                    cropperInstance.setAspectRatio(currentRatio);
+                }
+            });
+        });
+
+        // --- 3. 导出逻辑：裁剪并合成 16:9 黑边图 ---
+        exportBtn.addEventListener('click', () => {
+            if (!cropperInstance || !originalImage) {
+                alert('请先上传图片！');
+                return;
+            }
+
+            // 1. 获取裁剪区域数据 (2.35:1)
+            const cropData = cropperInstance.getData();
+            const cropCanvas = cropperInstance.getCroppedCanvas();
+
+            // 获取裁剪后的图片数据
+            cropCanvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const img235 = new Image();
+                img235.src = url;
+
+                img235.onload = () => {
+                    // 2. 计算 16:9 画布尺寸
+                    // 目标：保持宽度不变，计算 16:9 所需的高度
+                    const targetWidth = img235.width;
+                    const targetHeight = Math.round(targetWidth / (16 / 9));
+
+                    // 3. 创建 16:9 画布并绘制
+                    const finalCanvas = document.createElement('canvas');
+                    const ctx = finalCanvas.getContext('2d');
+
+                    finalCanvas.width = targetWidth;
+                    finalCanvas.height = targetHeight;
+
+                    // 填充黑色背景
+                    ctx.fillStyle = 'black';
+                    ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+
+                    // 计算 2.35:1 图片在 16:9 画布中的位置 (垂直居中)
+                    const img235Height = Math.round(targetWidth / 2.35);
+                    const startY = (targetHeight - img235Height) / 2;
+
+                    // 绘制图片
+                    ctx.drawImage(img235, 0, startY, targetWidth, img235Height);
+
+                    // 4. 导出最终图片
+                    finalCanvas.toBlob((finalBlob) => {
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(finalBlob);
+                        link.download = 'movie_style_16_9.jpg';
+                        link.click();
+                    }, 'image/jpeg', 0.95);
+                };
+            }, 'image/jpeg', 0.95);
+        });
+    </script>
+</body>
+
+</html>
