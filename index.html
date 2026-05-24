@@ -347,16 +347,17 @@ function updatePreviewHeader() {
             cropPlaceholder.style.display = 'none';
             previewPlaceholder.style.display = 'none';
             exportBtn.disabled = false;
+            //重置状态，显示图片
 
             imageEl.onload = () => {
-                cropper = new Cropper(imageEl, {
-                    aspectRatio: currentRatio,
-                    viewMode: 1,
-                    responsive: true,
-                    autoCropArea: 0.85,
-                    guides: true,
-                    cropBoxMovable: true,
-                    cropBoxResizable: true,
+                cropper = new Cropper(imageEl, {   // 创建裁剪实例
+                    aspectRatio: currentRatio,      // 裁剪框锁定比例（默认2.35）
+                    viewMode: 1,                    // 裁剪框不超出图片范围
+                    responsive: true,               // 容器大小变化时自适应
+                    autoCropArea: 1,            // 初始裁剪框覆盖XXX%图片面积
+                    guides: true,                   // 显示辅助线（九宫格）
+                    cropBoxMovable: true,          // 允许拖拽裁剪框
+                    cropBoxResizable: true,        // 允许拖拽裁剪框边角调整大小
                     crop: () => {
                         clearTimeout(cropDebounce);
                         cropDebounce = setTimeout(updatePreview, 80);
