@@ -1,218 +1,418 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
-    <meta charset="UTF-8" />
-    <title>电影比例图片裁剪工具（16:9 黑边版）</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClipView - 图片裁剪与黑边合成工具</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css">
     <style>
-        /* ... 你的原有 CSS 样式保持不变 ... */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: system-ui, sans-serif;
+        :root {
+            --bg: #f0f2f5;
+            --text: #333;
+            --surface: #fff;
+            --border: #dde;
+            --accent: #4a90d9;
+            --accent-hover: #357abd;
+            --accent-text: #fff;
+            --success: #28a745;
+            --success-hover: #1e7e34;
+            --danger: #dc3545;
+            --muted: #888;
+            --shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
-
-        .container {
-            max-width: 1000px;
-            margin: 30px auto;
-            padding: 0 20px;
+        [data-theme="dark"] {
+            --bg: #1a1a2e;
+            --text: #e0e0e0;
+            --surface: #16213e;
+            --border: #2a2a4a;
+            --accent: #4dabf7;
+            --accent-hover: #339af0;
+            --muted: #aaa;
+            --shadow: 0 2px 12px rgba(0,0,0,0.3);
         }
-
-        .title {
-            text-align: center;
-            margin-bottom: 20px;
-            color: #333;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
         }
-
-        .upload {
-            text-align: center;
-            margin-bottom: 20px;
+        .container { max-width: 1500px; margin: 0 auto; padding: 20px 24px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .header h1 { font-size: 1.4rem; font-weight: 700; }
+        .theme-btn {
+            padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px;
+            background: var(--surface); color: var(--text); cursor: pointer; font-size: 0.85rem;
+            transition: all 0.2s;
         }
-
-        #file {
-            display: none;
+        .theme-btn:hover { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+        .upload-zone {
+            border: 2px dashed var(--border); border-radius: 10px; padding: 28px 16px;
+            text-align: center; background: var(--surface); cursor: pointer;
+            transition: border-color 0.2s, background 0.2s; margin-bottom: 14px;
+            box-shadow: var(--shadow);
         }
-
-        .upload-btn {
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .ratio-btns {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
+        .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--surface)); }
+        .upload-zone p { color: var(--muted); font-size: 0.9rem; }
+        .upload-zone .hint { font-size: 0.78rem; margin-top: 4px; }
+        .ratio-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
         .ratio-btn {
-            padding: 5px 10px;
-            cursor: pointer;
-            border: 1px solid #ccc;
-            background: #f0f0f0;
+            padding: 5px 12px; border: 1px solid var(--border); border-radius: 5px;
+            background: var(--surface); color: var(--text); cursor: pointer; font-size: 0.83rem;
+            transition: all 0.15s;
         }
-
-        .ratio-btn.active {
-            background-color: #007bff;
-            color: white;
-            border-color: #007bff;
+        .ratio-btn:hover { border-color: var(--accent); }
+        .ratio-btn.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+        .custom-ratio { display: flex; align-items: center; gap: 4px; margin-left: 8px; }
+        .custom-ratio input {
+            width: 52px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px;
+            background: var(--surface); color: var(--text); text-align: center; font-size: 0.83rem;
         }
-
-        .canvas-container {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 20px;
+        .custom-ratio span { color: var(--muted); font-size: 0.83rem; }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+        .tool-btn {
+            padding: 5px 12px; border: 1px solid var(--border); border-radius: 5px;
+            background: var(--surface); color: var(--text); cursor: pointer; font-size: 0.83rem;
+            transition: all 0.15s;
         }
-
-        #image {
-            max-width: 100%;
-            max-height: 500px;
-            border: 1px dashed #ccc;
+        .tool-btn:hover { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+        .workspace { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        .panel {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+            overflow: hidden; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; min-height: 420px; box-shadow: var(--shadow); position: relative;
         }
-
+        .panel-header {
+            font-size: 0.75rem; color: var(--muted); padding: 6px 12px;
+            background: var(--bg); width: 100%; text-align: center; border-bottom: 1px solid var(--border);
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .panel-body { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; padding: 10px; }
+        .panel-placeholder { color: var(--muted); font-size: 0.9rem; }
+        .crop-panel .panel-body { display: block; padding: 0; }
+        #image { display: block; max-width: 100%; max-height: 500px; }
+        .preview-panel .panel-body { background: #111; padding: 16px; }
+        #preview-canvas { max-width: 100%; max-height: 100%; display: block; border-radius: 4px; }
+        .export-bar {
+            display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+            padding: 14px 20px; box-shadow: var(--shadow);
+        }
+        .export-bar label { font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+        .export-bar select, .export-bar input[type="range"] {
+            background: var(--bg); color: var(--text); border: 1px solid var(--border);
+            border-radius: 4px; padding: 5px 8px; font-size: 0.85rem;
+        }
+        .export-bar input[type="range"] { width: 100px; }
+        #quality-val { font-size: 0.8rem; color: var(--muted); min-width: 36px; }
         .export-btn {
-            display: block;
-            margin: 20px auto;
-            padding: 10px 30px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
+            padding: 8px 28px; background: var(--success); color: #fff; border: none;
+            border-radius: 6px; cursor: pointer; font-size: 0.95rem; font-weight: 600;
+            transition: background 0.15s; margin-left: auto;
+        }
+        .export-btn:hover { background: var(--success-hover); }
+        .export-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .toast {
+            position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+            background: #333; color: #fff; padding: 10px 24px; border-radius: 8px;
+            font-size: 0.88rem; z-index: 1000; opacity: 0; pointer-events: none;
+            transition: opacity 0.35s; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+        .toast.show { opacity: 1; }
+        .toast.error { background: var(--danger); }
+        @media (max-width: 768px) {
+            .container { padding: 12px; }
+            .workspace { grid-template-columns: 1fr; }
+            .panel { min-height: 320px; }
+            .header h1 { font-size: 1.1rem; }
+            .ratio-btn { padding: 4px 9px; font-size: 0.78rem; }
+            .tool-btn { padding: 4px 9px; font-size: 0.78rem; }
+            .export-bar { flex-direction: column; align-items: stretch; }
+            .export-btn { margin-left: 0; text-align: center; }
+            .custom-ratio { margin-left: 0; margin-top: 4px; }
         }
     </style>
 </head>
-
 <body>
     <div class="container">
-        <div class="title">
-            <h1>图片裁剪与黑边合成工具</h1>
+        <div class="header">
+            <h1>ClipView</h1>
+            <button class="theme-btn" id="themeBtn" title="切换主题">🌙 暗色</button>
         </div>
-        <div class="upload">
-            <label for="file" class="upload-btn">选择图片</label>
-            <input type="file" id="file" accept="image/*" />
+        <div class="upload-zone" id="uploadZone">
+            <p>拖拽图片到此处，或点击选择</p>
+            <p class="hint">也支持 Ctrl+V 粘贴</p>
+            <input type="file" id="fileInput" accept="image/*" hidden>
         </div>
-        <div class="ratio-btns">
-            <div class="ratio-btn active" data-ratio="2.35">2.35:1 (电影)</div>
+        <div class="ratio-bar" id="ratioBar">
+            <button class="ratio-btn active" data-ratio="2.35">2.35:1</button>
+            <button class="ratio-btn" data-ratio="1.778">16:9</button>
+            <button class="ratio-btn" data-ratio="1.333">4:3</button>
+            <button class="ratio-btn" data-ratio="1">1:1</button>
+            <button class="ratio-btn" data-ratio="2.333">21:9</button>
+            <span class="custom-ratio">
+                <input type="number" id="ratioW" placeholder="宽" min="1" value="">
+                <span>:</span>
+                <input type="number" id="ratioH" placeholder="高" min="1" value="">
+            </span>
         </div>
-        <div class="canvas-container">
-            <img src="" id="image" alt="Preview" style="display: none;" />
+        <div class="toolbar">
+            <button class="tool-btn" id="rotateLeft">↺ 左旋90°</button>
+            <button class="tool-btn" id="rotateRight">↻ 右旋90°</button>
+            <button class="tool-btn" id="flipH">⇔ 水平翻转</button>
+            <button class="tool-btn" id="flipV">⇕ 垂直翻转</button>
+            <button class="tool-btn" id="resetBtn">↩ 重置</button>
         </div>
-        <button class="export-btn" id="exportBtn">导出 16:9 黑边图</button>
+        <div class="workspace">
+            <div class="panel crop-panel">
+                <div class="panel-header">裁剪区</div>
+                <div class="panel-body">
+                    <img id="image" src="" alt="Preview" style="display:none">
+                    <span class="panel-placeholder" id="cropPlaceholder">上传图片以开始裁剪</span>
+                </div>
+            </div>
+            <div class="panel preview-panel">
+                <div class="panel-header">16:9 黑边预览</div>
+                <div class="panel-body">
+                    <canvas id="previewCanvas"></canvas>
+                    <span class="panel-placeholder" id="previewPlaceholder" style="color:#888">裁剪后自动预览</span>
+                </div>
+            </div>
+        </div>
+        <div class="export-bar">
+            <label for="exportFormat">格式</label>
+            <select id="exportFormat">
+                <option value="jpeg">JPEG</option>
+                <option value="png">PNG</option>
+                <option value="webp">WebP</option>
+            </select>
+            <label for="exportQuality">质量</label>
+            <input type="range" id="exportQuality" min="0.1" max="1" step="0.01" value="0.92">
+            <span id="qualityVal">92%</span>
+            <button class="export-btn" id="exportBtn" disabled>导出下载</button>
+        </div>
     </div>
-
+    <div class="toast" id="toast"></div>
     <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
     <script>
-        let cropperInstance = null;
+        let cropper = null;
         let currentRatio = 2.35;
-        let originalImage = null; // 用于保存原始图片对象
+        let rotationDeg = 0;
+        let flipHActive = false;
+        let flipVActive = false;
+        let cropDebounce = null;
 
-        const fileInput = document.getElementById('file');
-        const imageElement = document.getElementById('image');
-        const ratioBtns = document.querySelectorAll('.ratio-btn');
-        const exportBtn = document.getElementById('exportBtn');
+        const $ = id => document.getElementById(id);
+        const fileInput = $('fileInput');
+        const uploadZone = $('uploadZone');
+        const imageEl = $('image');
+        const previewCanvas = $('previewCanvas');
+        const previewCtx = previewCanvas.getContext('2d');
+        const themeBtn = $('themeBtn');
+        const exportBtn = $('exportBtn');
+        const exportFormat = $('exportFormat');
+        const exportQuality = $('exportQuality');
+        const qualityVal = $('qualityVal');
+        const toastEl = $('toast');
+        const cropPlaceholder = $('cropPlaceholder');
+        const previewPlaceholder = $('previewPlaceholder');
 
-        // --- 1. 文件选择 ---
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    imageElement.src = e.target.result;
-                    imageElement.style.display = 'block';
-
-                    // 初始化 Cropper
-                    if (cropperInstance) {
-                        cropperInstance.destroy();
-                    }
-                    cropperInstance = new Cropper(imageElement, {
-                        aspectRatio: currentRatio,
-                        viewMode: 1,
-                        responsive: true,
-                        autoCropArea: 0.8,
-                        ready: function () {
-                            // 图片加载完成后，获取原始尺寸
-                            originalImage = new Image();
-                            originalImage.src = e.target.result;
-                        }
-                    });
-                };
-                reader.readAsDataURL(file);
-            }
+        // Theme
+        function initTheme() {
+            const saved = localStorage.getItem('clipview-theme') || 'light';
+            document.body.setAttribute('data-theme', saved);
+            themeBtn.textContent = saved === 'dark' ? '☀️ 亮色' : '🌙 暗色';
+        }
+        themeBtn.addEventListener('click', () => {
+            const cur = document.body.getAttribute('data-theme');
+            const next = cur === 'dark' ? 'light' : 'dark';
+            document.body.setAttribute('data-theme', next);
+            localStorage.setItem('clipview-theme', next);
+            themeBtn.textContent = next === 'dark' ? '☀️ 亮色' : '🌙 暗色';
         });
 
-        // --- 2. 比例切换 ---
-        ratioBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                ratioBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentRatio = parseFloat(btn.dataset.ratio);
+        // Toast
+        let toastTimer;
+        function toast(msg, isError) {
+            clearTimeout(toastTimer);
+            toastEl.textContent = msg;
+            toastEl.className = 'toast' + (isError ? ' error' : '') + ' show';
+            toastTimer = setTimeout(() => { toastEl.className = 'toast'; }, 2200);
+        }
 
-                if (cropperInstance) {
-                    cropperInstance.setAspectRatio(currentRatio);
-                }
-            });
-        });
-
-        // --- 3. 导出逻辑：裁剪并合成 16:9 黑边图 ---
-        exportBtn.addEventListener('click', () => {
-            if (!cropperInstance || !originalImage) {
-                alert('请先上传图片！');
+        // Upload
+        function handleFile(file) {
+            if (!file || !file.type.startsWith('image/')) {
+                toast('请选择一张图片文件', true);
                 return;
             }
+            const url = URL.createObjectURL(file);
+            initCropper(url);
+            uploadZone.querySelector('p').textContent = '点击更换图片';
+        }
 
-            // 1. 获取裁剪区域数据 (2.35:1)
-            const cropData = cropperInstance.getData();
-            const cropCanvas = cropperInstance.getCroppedCanvas();
+        uploadZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
 
-            // 获取裁剪后的图片数据
-            cropCanvas.toBlob((blob) => {
-                const url = URL.createObjectURL(blob);
-                const img235 = new Image();
-                img235.src = url;
-
-                img235.onload = () => {
-                    // 2. 计算 16:9 画布尺寸
-                    // 目标：保持宽度不变，计算 16:9 所需的高度
-                    const targetWidth = img235.width;
-                    const targetHeight = Math.round(targetWidth / (16 / 9));
-
-                    // 3. 创建 16:9 画布并绘制
-                    const finalCanvas = document.createElement('canvas');
-                    const ctx = finalCanvas.getContext('2d');
-
-                    finalCanvas.width = targetWidth;
-                    finalCanvas.height = targetHeight;
-
-                    // 填充黑色背景
-                    ctx.fillStyle = 'black';
-                    ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
-
-                    // 计算 2.35:1 图片在 16:9 画布中的位置 (垂直居中)
-                    const img235Height = Math.round(targetWidth / 2.35);
-                    const startY = (targetHeight - img235Height) / 2;
-
-                    // 绘制图片
-                    ctx.drawImage(img235, 0, startY, targetWidth, img235Height);
-
-                    // 4. 导出最终图片
-                    finalCanvas.toBlob((finalBlob) => {
-                        const link = document.createElement('a');
-                        link.href = URL.createObjectURL(finalBlob);
-                        link.download = 'movie_style_16_9.jpg';
-                        link.click();
-                    }, 'image/jpeg', 0.95);
-                };
-            }, 'image/jpeg', 0.95);
+        uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+        uploadZone.addEventListener('dragleave', () => { uploadZone.classList.remove('drag-over'); });
+        uploadZone.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadZone.classList.remove('drag-over');
+            if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
         });
+
+        document.addEventListener('paste', e => {
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    handleFile(item.getAsFile());
+                    break;
+                }
+            }
+        });
+
+        // Cropper init
+        function initCropper(url) {
+            if (cropper) { cropper.destroy(); cropper = null; }
+            rotationDeg = 0; flipHActive = false; flipVActive = false;
+            imageEl.src = url;
+            imageEl.style.display = 'block';
+            cropPlaceholder.style.display = 'none';
+            previewPlaceholder.style.display = 'none';
+            exportBtn.disabled = false;
+
+            imageEl.onload = () => {
+                cropper = new Cropper(imageEl, {
+                    aspectRatio: currentRatio,
+                    viewMode: 1,
+                    responsive: true,
+                    autoCropArea: 0.85,
+                    guides: true,
+                    cropBoxMovable: true,
+                    cropBoxResizable: true,
+                    crop: () => {
+                        clearTimeout(cropDebounce);
+                        cropDebounce = setTimeout(updatePreview, 80);
+                    },
+                    ready: () => updatePreview()
+                });
+            };
+        }
+
+        // Live preview - draw cropped image on 16:9 black canvas
+        function updatePreview() {
+            if (!cropper) return;
+            const cvs = cropper.getCroppedCanvas();
+            if (!cvs || cvs.width < 2) return;
+
+            const maxW = 900;
+            const scale = Math.min(1, maxW / cvs.width);
+            const tw = Math.round(cvs.width * scale);
+            const th = Math.round(tw / (16 / 9));
+
+            previewCanvas.width = tw;
+            previewCanvas.height = th;
+            previewCtx.fillStyle = '#000';
+            previewCtx.fillRect(0, 0, tw, th);
+
+            const imgH = Math.round(tw / currentRatio);
+            const sy = (th - imgH) / 2;
+            previewCtx.drawImage(cvs, 0, sy, tw, imgH);
+        }
+
+        // Ratio presets
+        $('ratioBar').addEventListener('click', e => {
+            const btn = e.target.closest('.ratio-btn');
+            if (!btn) return;
+            document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentRatio = parseFloat(btn.dataset.ratio);
+            $('ratioW').value = '';
+            $('ratioH').value = '';
+            if (cropper) cropper.setAspectRatio(currentRatio);
+        });
+
+        // Custom ratio
+        let customTimer;
+        function applyCustomRatio() {
+            const w = parseFloat($('ratioW').value);
+            const h = parseFloat($('ratioH').value);
+            if (w > 0 && h > 0 && cropper) {
+                currentRatio = w / h;
+                document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+                cropper.setAspectRatio(currentRatio);
+            }
+        }
+        $('ratioW').addEventListener('input', () => { clearTimeout(customTimer); customTimer = setTimeout(applyCustomRatio, 400); });
+        $('ratioH').addEventListener('input', () => { clearTimeout(customTimer); customTimer = setTimeout(applyCustomRatio, 400); });
+
+        // Toolbar
+        $('rotateLeft').addEventListener('click', () => {
+            if (!cropper) { toast('请先上传图片', true); return; }
+            rotationDeg = (rotationDeg - 90) % 360;
+            cropper.rotate(-90);
+        });
+        $('rotateRight').addEventListener('click', () => {
+            if (!cropper) { toast('请先上传图片', true); return; }
+            rotationDeg = (rotationDeg + 90) % 360;
+            cropper.rotate(90);
+        });
+        $('flipH').addEventListener('click', () => {
+            if (!cropper) { toast('请先上传图片', true); return; }
+            flipHActive = !flipHActive;
+            cropper.scaleX(flipHActive ? -1 : 1);
+        });
+        $('flipV').addEventListener('click', () => {
+            if (!cropper) { toast('请先上传图片', true); return; }
+            flipVActive = !flipVActive;
+            cropper.scaleY(flipVActive ? -1 : 1);
+        });
+        $('resetBtn').addEventListener('click', () => {
+            if (!cropper) { toast('请先上传图片', true); return; }
+            cropper.reset();
+            cropper.setAspectRatio(currentRatio);
+            if (flipHActive) { cropper.scaleX(1); flipHActive = false; }
+            if (flipVActive) { cropper.scaleY(1); flipVActive = false; }
+            rotationDeg = 0;
+            updatePreview();
+        });
+
+        // Export
+        exportQuality.addEventListener('input', () => {
+            qualityVal.textContent = Math.round(exportQuality.value * 100) + '%';
+        });
+        exportBtn.addEventListener('click', () => {
+            if (!cropper) { toast('请先上传图片', true); return; }
+            const cropCvs = cropper.getCroppedCanvas();
+            if (!cropCvs || cropCvs.width < 2) { toast('裁剪区域无效', true); return; }
+
+            const tw = cropCvs.width;
+            const th = Math.round(tw / (16 / 9));
+            const ecvs = document.createElement('canvas');
+            ecvs.width = tw;
+            ecvs.height = th;
+            const ctx = ecvs.getContext('2d');
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, tw, th);
+            const imgH = Math.round(tw / currentRatio);
+            ctx.drawImage(cropCvs, 0, (th - imgH) / 2, tw, imgH);
+
+            const fmt = exportFormat.value;
+            const qual = parseFloat(exportQuality.value);
+            ecvs.toBlob(blob => {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'clipview_' + Date.now() + '.' + (fmt === 'jpeg' ? 'jpg' : fmt);
+                a.click();
+                URL.revokeObjectURL(a.href);
+                toast('导出成功');
+            }, 'image/' + fmt, qual);
+        });
+
+        initTheme();
     </script>
 </body>
-
 </html>
