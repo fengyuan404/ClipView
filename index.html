@@ -371,7 +371,7 @@ function updatePreviewHeader() {
             const text = subtitleInput.value.trim();
             if (!text) return;
             const barH = (ch - imgH) / 2;
-            const fontSize = Math.max(16, Math.min(72, Math.floor(barH * 0.6)));
+            const fontSize = Math.max(16, Math.floor(barH * 0.85));
             ctx.fillStyle = 'rgba(255,255,255,0.9)';
             ctx.font = fontSize + 'px system-ui, "Microsoft YaHei", sans-serif';
             ctx.textAlign = 'center';
