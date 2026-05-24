@@ -366,17 +366,17 @@ function updatePreviewHeader() {
             };
         }
 
-        // Draw subtitle on canvas if applicable
+        // 控制字幕大小和位置
         function drawSubtitle(ctx, cw, ch, imgH) {
             const text = subtitleInput.value.trim();
             if (!text) return;
             const barH = (ch - imgH) / 2;
-            const fontSize = Math.max(16, Math.floor(barH * 0.85));
+            const fontSize = Math.max(16, Math.floor(barH * 0.4));
             ctx.fillStyle = 'rgba(255,255,255,0.9)';
             ctx.font = fontSize + 'px system-ui, "Microsoft YaHei", sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(text, cw / 2, ch - barH / 2 + fontSize * 0.15);
+            ctx.fillText(text, cw / 2, ch - barH *0.6 + fontSize * 0.15);
         }
 
         // Live preview
