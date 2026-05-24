@@ -115,9 +115,14 @@
         .export-bar select, .export-bar input[type="range"] {
             background: var(--bg); color: var(--text); border: 1px solid var(--border);
             border-radius: 4px; padding: 5px 8px; font-size: 0.85rem;
+            accent-color: var(--accent);
         }
-        .export-bar input[type="range"] { width: 100px; }
-        #quality-val { font-size: 0.8rem; color: var(--muted); min-width: 36px; }
+
+        .export-bar input[type="range"] { width: 100px;
+            margin: 0; padding: 0;
+        }
+
+        #quality-val { width: 48px; text-align: center; font-size: 0.85rem; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); }
         .export-btn {
             padding: 8px 28px; background: var(--success); color: #fff; border: none;
             border-radius: 6px; cursor: pointer; font-size: 0.95rem; font-weight: 600;
@@ -216,7 +221,7 @@
             </select>
             <label for="exportQuality">质量</label>
             <input type="range" id="exportQuality" min="0.1" max="1" step="0.01" value="0.95">
-            <span id="qualityVal">95%</span>
+            <input type="number" id="qualityVal" min="10" max="100" value="95" step="1"><span>%</span>
             <button class="export-btn" id="exportBtn" disabled>导出下载</button>
         </div>
     </div>
@@ -511,8 +516,21 @@
         });
 
         // Export
-        exportQuality.addEventListener('input', () => {
-            qualityVal.textContent = Math.round(exportQuality.value * 100) + '%';
+        function syncQualityFromSlider() {
+            qualityVal.value = Math.round(exportQuality.value * 100);
+        }
+        function syncQualityFromInput() {
+            let v = parseInt(qualityVal.value) || 92;
+            v = Math.max(10, Math.min(100, v));
+            exportQuality.value = v / 100;
+        }
+        exportQuality.addEventListener('input', syncQualityFromSlider);
+        qualityVal.addEventListener('input', syncQualityFromInput);
+        qualityVal.addEventListener('blur', () => {
+            let v = parseInt(qualityVal.value) || 92;
+            v = Math.max(10, Math.min(100, v));
+            qualityVal.value = v;
+            exportQuality.value = v / 100;
         });
         exportBtn.addEventListener('click', () => {
             if (!cropper) { toast('请先上传图片', true); return; }
@@ -567,6 +585,8 @@
             }
         });
         ro.observe(previewBody);
+
+syncQualityFromSlider();
 
 initTheme();
         updatePreviewHeader();
