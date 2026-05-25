@@ -616,7 +616,23 @@
 
 syncQualityFromSlider();
 
-initTheme();
+        document.querySelectorAll(".nav-links a").forEach(function(a) {
+            a.addEventListener("click", function() {
+                var el = document.getElementById("modal-" + a.dataset.modal);
+                if (el) el.classList.add("show");
+            });
+        });
+        document.querySelectorAll(".modal-overlay").forEach(function(ov) {
+            ov.addEventListener("click", function(e) { if (e.target === ov) ov.classList.remove("show"); });
+        });
+        document.querySelectorAll(".modal-close").forEach(function(btn) {
+            btn.addEventListener("click", function() { btn.closest(".modal-overlay").classList.remove("show"); });
+        });
+        document.addEventListener("keydown", function(e) {
+            if (e.key === "Escape") document.querySelectorAll(".modal-overlay.show").forEach(function(m) { m.classList.remove("show"); });
+        });
+
+        initTheme();
         updatePreviewHeader();
         updateSubtitleVisibility();
     </script>
